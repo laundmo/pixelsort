@@ -11,10 +11,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+// TODO: allow storing functions to be selected from the UI.
 struct Settings {
     thresh: usize,
 }
 
+// TODO: Pre-cache luminance calculations once per image
 struct Model {
     buffer: image::RgbImage,
     settings: Settings,
@@ -49,6 +51,7 @@ fn model(app: &App) -> Model {
     }
 }
 
+// TODO: Does not actually need to store function? rather store enum pointing to predefined funcs.
 struct RowOp<T> {
     key: Option<fn(&[T; 3], &[T; 3]) -> std::cmp::Ordering>,
     threshold: Option<fn(&[T; 3], &Settings) -> bool>,
@@ -90,6 +93,9 @@ impl<T> RowOp<T> {
                 start = (0, false);
             }
         }
+        if start.1 {
+            self.add_slice(start.0, row.len() - 1);
+        }
 
         self
     }
@@ -103,6 +109,7 @@ impl<T> fmt::Debug for RowOp<T> {
     }
 }
 
+// TODO: do i actually need to store the entire image, maybe could use the buffer directly
 struct PixelsortImage<T> {
     rows: Vec<Vec<[T; 3]>>,
     row_ops: Vec<RowOp<T>>,
@@ -153,7 +160,7 @@ impl PixelsortImage<u8> {
 
     fn consume_to_buffer(&mut self, settings: &Settings) -> image::RgbImage {
         self.sort_unstable(settings);
-        let data: Vec<u8> = self.rows.par_iter().flatten().flat_map(|a| *a).collect();
+        let data: Vec<u8> = self.rows.iter().flatten().flat_map(|a| *a).collect();
         image::ImageBuffer::from_raw(self.width, self.height, data).unwrap()
     }
 }
@@ -227,6 +234,8 @@ impl<'a> PixelUtil<'a, u8> {
 }
 
 fn update(_app: &App, model: &mut Model, update: Update) {
+    println!("{} ms", update.since_last.as_millis());
+
     let egui = &mut model.egui;
     let settings = &mut model.settings;
 
@@ -251,12 +260,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
     let mut img = PixelsortImage::from_buffer(&model.buffer);
     for op in &mut img.row_ops {
-        op.set_key(|pixela, pixelb| {
-            PixelUtil(pixelb)
-                .luminance()
-                .cmp(&PixelUtil(pixela).luminance())
-        })
-        .add_threshold(|pixel, settings| PixelUtil(pixel).luminance() < settings.thresh);
+        op.set_key(|pixela, pixelb| pixelb[0].cmp(&pixela[0]))
+            .add_threshold(|pixel, settings| PixelUtil(pixel).luminance() < settings.thresh);
     }
 
     let buf = img.consume_to_buffer(settings);

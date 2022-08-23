@@ -1286,17 +1286,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nannouvis"
-version = "0.1.0"
-dependencies = [
- "itertools",
- "nannou",
- "nannou_egui",
- "num-traits",
- "rayon",
-]
-
-[[package]]
 name = "ndk"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1674,6 +1663,17 @@ name = "profiling"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f61dcf0b917cd75d4521d7343d1ffff3d1583054133c9b5cbea3375c703c40d"
+
+[[package]]
+name = "pxielsort"
+version = "0.1.0"
+dependencies = [
+ "itertools",
+ "nannou",
+ "nannou_egui",
+ "num-traits",
+ "rayon",
+]
 
 [[package]]
 name = "quote"

@@ -1,7 +1,8 @@
-use std::ops::RangeInclusive;
+use std::{iter::Copied, slice::ArrayChunks};
 
 use itertools::Itertools;
 
+#[derive(strum_macros::Display, PartialEq, Clone)]
 pub(crate) enum Threshold {
     Luminance(f32),
     Red(u8),
@@ -10,7 +11,15 @@ pub(crate) enum Threshold {
     // HueDegrees(u16),
 }
 
-enum Ordering {
+impl Default for Threshold {
+    fn default() -> Self {
+        Threshold::Luminance(150.)
+    }
+}
+
+#[derive(Default, strum_macros::Display, PartialEq, Clone)]
+pub(crate) enum PixelOrdering {
+    #[default]
     Luminance,
     Red,
     Green,
@@ -18,40 +27,58 @@ enum Ordering {
     // HueDegrees,
 }
 
+fn pixel_to_luminance(pixel: &[u8; 4]) -> f32 {
+    (pixel[0] as usize + pixel[1] as usize * 3 + pixel[2] as usize * 2) as f32 / 6.
+}
+
+impl PixelOrdering {
+    pub(crate) fn order(&self, iter: Copied<ArrayChunks<u8, 4>>, reverse: bool) -> Vec<u8> {
+        let iter = match self {
+            PixelOrdering::Luminance => iter
+                .sorted_unstable_by(|a, b| pixel_to_luminance(a).total_cmp(&pixel_to_luminance(b)))
+                .flatten(),
+            PixelOrdering::Red => iter.sorted_unstable_by(|a, b| a[0].cmp(&b[0])).flatten(),
+            PixelOrdering::Green => iter.sorted_unstable_by(|a, b| a[1].cmp(&b[0])).flatten(),
+            PixelOrdering::Blue => iter.sorted_unstable_by(|a, b| a[2].cmp(&b[0])).flatten(),
+        };
+        if reverse {
+            iter.rev().collect()
+        } else {
+            iter.collect()
+        }
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct RowOp {
-    pub(crate) slices: Vec<RangeInclusive<usize>>,
+    pub(crate) slices: Vec<(usize, usize)>,
 }
 
 impl RowOp {
-    fn add_slice(&mut self, range: RangeInclusive<usize>) {
-        self.slices.push(range);
+    fn add_slice(&mut self, (start, end): (usize, usize)) {
+        self.slices.push((start, end));
     }
 
-    pub(crate) fn apply_threshold(&mut self, row: &[u8], threshold: Threshold, reverse: bool) {
-        let mut bools: Vec<bool> = {
+    pub(crate) fn apply_threshold(&mut self, row: &[u8], threshold: &Threshold, reverse: bool) {
+        let bools: Vec<bool> = {
             match threshold {
                 Threshold::Luminance(value) => row
-                    .chunks_exact(3)
-                    .map(|x| (x[0] + x[1] * 3 + x[2] * 2) as f32 / 6. < value)
+                    .array_chunks::<4>()
+                    .map(|x| pixel_to_luminance(x) < *value)
                     .collect(),
-                Threshold::Red(value) => row.chunks_exact(3).map(|x| x[0] < value).collect(),
-                Threshold::Green(value) => row.chunks_exact(3).map(|x| x[1] < value).collect(),
-                Threshold::Blue(value) => row.chunks_exact(3).map(|x| x[2] < value).collect(),
+                Threshold::Red(value) => row.array_chunks::<4>().map(|x| x[0] < *value).collect(),
+                Threshold::Green(value) => row.array_chunks::<4>().map(|x| x[1] < *value).collect(),
+                Threshold::Blue(value) => row.array_chunks::<4>().map(|x| x[2] < *value).collect(),
             }
         };
 
-        if reverse {
-            bools.reverse();
-        }
-
         for (key, mut group) in &bools.iter().enumerate().group_by(|(_, b)| *b) {
-            if *key {
+            if *key != reverse {
                 let first = group.next().unwrap();
                 if let Some(last) = group.last() {
-                    self.add_slice(first.0..=last.0);
+                    self.add_slice((first.0, last.0 + 1));
                 } else {
-                    self.add_slice(first.0..=first.0);
+                    self.add_slice((first.0, first.0 + 1));
                 }
             }
         }

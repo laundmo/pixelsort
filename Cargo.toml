@@ -12,6 +12,8 @@ num-traits = "0.2.15"
 rayon = "1.5.3"
 bevy_egui = "0.16"
 bevy_pancam = "0.5.0"
+strum = "0.24"
+strum_macros = "0.24"
 
 # dynamic feature default
 [features]
@@ -27,6 +29,7 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
+opt-level = 3
 lto = "fat"
 strip = true
 debug = 1

@@ -39,7 +39,7 @@ struct Settings {
 impl FromWorld for PixelsortImage {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource_mut::<AssetServer>().unwrap();
-        let source = asset_server.load("input1.jpg");
+        let source = asset_server.load("input.jpg");
         Self {
             source: source.clone(),
             image: source,

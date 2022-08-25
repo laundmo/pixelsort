@@ -35,16 +35,15 @@ impl PixelOrdering {
     pub(crate) fn order(&self, iter: Copied<ArrayChunks<u8, 4>>, reverse: bool) -> Vec<u8> {
         let iter = match self {
             PixelOrdering::Luminance => iter
-                .sorted_unstable_by(|a, b| pixel_to_luminance(a).total_cmp(&pixel_to_luminance(b)))
-                .flatten(),
-            PixelOrdering::Red => iter.sorted_unstable_by(|a, b| a[0].cmp(&b[0])).flatten(),
-            PixelOrdering::Green => iter.sorted_unstable_by(|a, b| a[1].cmp(&b[0])).flatten(),
-            PixelOrdering::Blue => iter.sorted_unstable_by(|a, b| a[2].cmp(&b[0])).flatten(),
+                .sorted_unstable_by(|a, b| pixel_to_luminance(a).total_cmp(&pixel_to_luminance(b))),
+            PixelOrdering::Red => iter.sorted_unstable_by(|a, b| a[0].cmp(&b[0])),
+            PixelOrdering::Green => iter.sorted_unstable_by(|a, b| a[1].cmp(&b[0])),
+            PixelOrdering::Blue => iter.sorted_unstable_by(|a, b| a[2].cmp(&b[0])),
         };
         if reverse {
-            iter.rev().collect()
+            iter.rev().flatten().collect()
         } else {
-            iter.collect()
+            iter.flatten().collect()
         }
     }
 }

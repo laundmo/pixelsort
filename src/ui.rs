@@ -24,7 +24,7 @@ pub(crate) fn ui(mut egui_context: ResMut<EguiContext>, mut settings: ResMut<Set
                 Threshold::Luminance(ref mut val) => {
                     ui.add(
                         egui::Slider::new(val, 0.0..=255.0)
-                            .text("Luminance")
+                            .text("Threshold value")
                             .step_by(0.01),
                     );
                 }
@@ -33,7 +33,7 @@ pub(crate) fn ui(mut egui_context: ResMut<EguiContext>, mut settings: ResMut<Set
                 | Threshold::Blue(ref mut val) => {
                     ui.add(
                         egui::Slider::new(val, 0..=255)
-                            .text("Luminance")
+                            .text("Threshold value")
                             .step_by(0.1),
                     );
                 }

@@ -576,11 +576,12 @@ dependencies = [
 
 [[package]]
 name = "bevy_pancam"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32ba4b3d360adfdb816f1b467d4e66fe34e7438f861d4832b475b5b7cf98ab4b"
+checksum = "c511b05a724715c89917609f50dcc9509d98fec6ebd88a28b17e7da0e766519d"
 dependencies = [
  "bevy",
+ "bevy_egui",
 ]
 
 [[package]]

@@ -1,14 +1,11 @@
+use crate::Settings;
+use itertools::Itertools;
 use std::{iter::Copied, slice::ArrayChunks};
 
-use itertools::Itertools;
-
-#[derive(strum_macros::Display, PartialEq, Clone)]
+#[derive(strum_macros::Display, PartialEq, Clone, Debug)]
 pub(crate) enum Threshold {
     Luminance(f32),
-    Red(u8),
-    Green(u8),
-    Blue(u8),
-    // HueDegrees(u16),
+    ColorSimilarity(i16, [u8; 3]),
 }
 
 impl Default for Threshold {
@@ -21,14 +18,31 @@ impl Default for Threshold {
 pub(crate) enum PixelOrdering {
     #[default]
     Luminance,
-    Red,
-    Green,
-    Blue,
-    // HueDegrees,
+    ColorSimilarity([u8; 3]),
 }
 
 fn pixel_to_luminance(pixel: &[u8; 4]) -> f32 {
-    (pixel[0] as usize + pixel[1] as usize * 3 + pixel[2] as usize * 2) as f32 / 6.
+    (pixel[0] as usize * 2 + pixel[1] as usize * 3 + pixel[2] as usize) as f32 / 6.
+}
+
+// source: https://www.compuphase.com/cmetric.htm
+// double ColourDistance(RGB e1, RGB e2)
+// {
+//     long rmean = ( (long)e1.r + (long)e2.r ) / 2;
+//     long r = (long)e1.r - (long)e2.r;
+//     long g = (long)e1.g - (long)e2.g;
+//     long b = (long)e1.b - (long)e2.b;
+//     return sqrt((((512+rmean)*r*r)>>8) + 4*g*g + (((767-rmean)*b*b)>>8));
+// }
+
+// likely max: 2294
+fn distance_between(pixel: &[u8; 4], color: &[u8; 3]) -> i16 {
+    let rmean: i16 = (pixel[0] as i16 + color[0] as i16) / 2;
+    let r: i16 = pixel[0] as i16 - color[0] as i16;
+    let g: i16 = pixel[1] as i16 - color[1] as i16;
+    let b: i16 = pixel[2] as i16 - color[2] as i16;
+
+    ((2 + (rmean / 256)) * r + 4 * g + (2 + (255 - rmean) / 256) * b).abs()
 }
 
 impl PixelOrdering {
@@ -36,9 +50,9 @@ impl PixelOrdering {
         let iter = match self {
             PixelOrdering::Luminance => iter
                 .sorted_unstable_by(|a, b| pixel_to_luminance(a).total_cmp(&pixel_to_luminance(b))),
-            PixelOrdering::Red => iter.sorted_unstable_by(|a, b| a[0].cmp(&b[0])),
-            PixelOrdering::Green => iter.sorted_unstable_by(|a, b| a[1].cmp(&b[0])),
-            PixelOrdering::Blue => iter.sorted_unstable_by(|a, b| a[2].cmp(&b[0])),
+            PixelOrdering::ColorSimilarity(color) => iter.sorted_unstable_by(|a, b| {
+                distance_between(a, color).cmp(&distance_between(b, color))
+            }),
         };
         if reverse {
             iter.rev().flatten().collect()
@@ -58,16 +72,46 @@ impl RowOp {
         self.slices.push((start, end));
     }
 
-    pub(crate) fn apply_threshold(&mut self, row: &[u8], threshold: &Threshold, reverse: bool) {
+    fn extend_slices(&mut self, settings: &Settings, row_length: usize) {
+        let slices = self.slices.clone();
+        self.slices = slices
+            .iter()
+            .enumerate()
+            .map(|(i, slice)| {
+                let end = match slices.get(i + 1) {
+                    Some(next) => (slice.1 + settings.extend_threshold_right).min(next.1),
+                    None => (slice.1 + settings.extend_threshold_right).min(row_length),
+                };
+
+                let start = if i > 0 {
+                    match slices.get(i - 1) {
+                        Some(prev) => {
+                            (slice.0.saturating_sub(settings.extend_threshold_left)).max(prev.0)
+                        }
+                        None => slice.0.saturating_sub(settings.extend_threshold_left),
+                    }
+                } else {
+                    slice.0.saturating_sub(settings.extend_threshold_left)
+                };
+                (start.max(0), end)
+            })
+            .collect();
+    }
+
+    pub(crate) fn apply_threshold(&mut self, row: &[u8], width: usize, settings: &Settings) {
+        let threshold = &settings.threshold;
+        let reverse = settings.threshold_reverse;
+
         let bools: Vec<bool> = {
             match threshold {
                 Threshold::Luminance(value) => row
                     .array_chunks::<4>()
                     .map(|x| pixel_to_luminance(x) < *value)
                     .collect(),
-                Threshold::Red(value) => row.array_chunks::<4>().map(|x| x[0] < *value).collect(),
-                Threshold::Green(value) => row.array_chunks::<4>().map(|x| x[1] < *value).collect(),
-                Threshold::Blue(value) => row.array_chunks::<4>().map(|x| x[2] < *value).collect(),
+                Threshold::ColorSimilarity(value, color) => row
+                    .array_chunks::<4>()
+                    .map(|x| distance_between(x, color) < *value)
+                    .collect(),
             }
         };
 
@@ -81,5 +125,6 @@ impl RowOp {
                 }
             }
         }
+        self.extend_slices(&settings, width);
     }
 }

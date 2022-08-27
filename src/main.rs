@@ -34,12 +34,14 @@ struct Settings {
     threshold_reverse: bool,
     ordering: PixelOrdering,
     ordering_reverse: bool,
+    extend_threshold_left: usize,
+    extend_threshold_right: usize,
 }
 
 impl FromWorld for PixelsortImage {
     fn from_world(world: &mut World) -> Self {
         let asset_server = world.get_resource_mut::<AssetServer>().unwrap();
-        let source = asset_server.load("input.jpg");
+        let source = asset_server.load("lacrueizehaus.jpg");
         Self {
             source: source.clone(),
             image: source,
@@ -60,8 +62,9 @@ fn ensure_nn(
     }
 
     // get source image
-    let image_src = images.get(&pixelsimg.source);
+    let image_src = images.get_mut(&pixelsimg.source);
     if let Some(img) = image_src {
+        img.sampler_descriptor = ImageSampler::nearest();
         // clone source image
         let image = img.clone();
         // add handle to resource
@@ -110,16 +113,17 @@ fn update_img(
     *last_settings = settings.clone();
 
     if let Some(source) = images.get(&pixelsimg.source) {
-        let (w, h) = source.size().into();
-        let src_data = source.data.clone(); // TODO: this should not be neccessary
+        let (w, _) = source.size().into();
+        let w = w.round() as usize;
+        let src_data = source.data.clone();
         if let Some(dest) = images.get_mut(&pixelsimg.image) {
-            let width = w.round() as usize * 4;
+            let width = w * 4;
 
             dest.data = src_data;
 
             dest.data.par_chunks_exact_mut(width).for_each(|row| {
                 let mut row_op = RowOp::default();
-                row_op.apply_threshold(row, &settings.threshold, settings.threshold_reverse);
+                row_op.apply_threshold(row, w, &settings);
 
                 for range in row_op.slices.iter() {
                     let sorted = &settings.ordering.order(

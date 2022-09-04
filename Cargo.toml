@@ -11,7 +11,17 @@ itertools = "0.10.3"
 num-traits = "0.2.15"
 rayon = "1.5.3"
 bevy_egui = "0.16"
-bevy_pancam = { version = "0.6.0", features = ["bevy_egui"] }
+bevy_pancam = { version = "0.6.1", features = ["bevy_egui"] }
+bevy_web_asset = "0.4.0"
+bevy_asset_loader = { version = "0.12.1", features = [
+    "2d",
+    "dynamic_assets",
+    "stageless",
+    "progress_tracking",
+    "progress_tracking_stageless",
+] }
+iyes_progress = "0.5"
+iyes_loopless = "0.7"
 strum = "0.24"
 strum_macros = "0.24"
 

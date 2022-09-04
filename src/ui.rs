@@ -6,7 +6,17 @@ use crate::{
     Settings,
 };
 
-pub(crate) fn ui(mut egui_context: ResMut<EguiContext>, mut settings: ResMut<Settings>) {
+pub(crate) fn ui(
+    mut egui_context: ResMut<EguiContext>,
+    mut settings: ResMut<Settings>,
+    mut commands: Commands,
+) {
+    //  commands.add(RegisterStandardDynamicAsset {
+    //         key: "character",
+    //         asset: StandardDynamicAsset::File {
+    //             path: "https://i.laundmo.com/tENe0/CavaMUlo03.jpg".to_owned(),
+    //         },
+    //     });
     egui::Window::new("Settings")
         .resizable(true)
         .show(egui_context.ctx_mut(), |ui| {
@@ -37,7 +47,7 @@ fn threshold_ui(settings: &mut ResMut<Settings>, ui: &mut egui::Ui) {
                     ui.selectable_value(&mut settings.threshold, default, name);
                 }
             });
-        ui.toggle_value(&mut settings.threshold_reverse, "Inverse");
+        ui.toggle_value(&mut settings.threshold_reverse, "Invert");
     });
     ui.end_row();
     ui.label("Threshold Values:");

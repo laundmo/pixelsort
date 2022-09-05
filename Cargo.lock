@@ -1832,6 +1832,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "enable-ansi-support"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28d29d3ca9ba14c336417f8d7bc7f373e8c16d10c30cc0794b09d3cecab631ab"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "encase"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3410,6 +3419,7 @@ dependencies = [
  "bevy_egui",
  "bevy_pancam",
  "bevy_web_asset",
+ "enable-ansi-support",
  "itertools",
  "iyes_loopless",
  "iyes_progress",

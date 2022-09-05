@@ -25,6 +25,9 @@ enum ImageStates {
 }
 
 fn main() {
+    // Enable ansi on windows, if possible
+    let _ = enable_ansi_support::enable_ansi_support();
+
     App::new()
         // Setup resources (global state) for this app.
         .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))

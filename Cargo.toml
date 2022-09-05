@@ -24,6 +24,7 @@ iyes_progress = "0.5"
 iyes_loopless = "0.7"
 strum = "0.24"
 strum_macros = "0.24"
+enable-ansi-support = "0.1.2"
 
 # dynamic feature default
 [features]

@@ -3,20 +3,14 @@ use bevy_egui::{egui, EguiContext};
 
 use crate::{
     sorting::{PixelOrdering, Threshold},
-    Settings,
+    RotateEvent, Settings,
 };
 
 pub(crate) fn ui(
     mut egui_context: ResMut<EguiContext>,
     mut settings: ResMut<Settings>,
-    mut commands: Commands,
+    mut rotate: EventWriter<RotateEvent>,
 ) {
-    //  commands.add(RegisterStandardDynamicAsset {
-    //         key: "character",
-    //         asset: StandardDynamicAsset::File {
-    //             path: "https://i.laundmo.com/tENe0/CavaMUlo03.jpg".to_owned(),
-    //         },
-    //     });
     egui::Window::new("Settings")
         .resizable(true)
         .show(egui_context.ctx_mut(), |ui| {
@@ -27,12 +21,16 @@ pub(crate) fn ui(
                 .show(ui, |ui| {
                     threshold_ui(&mut settings, ui);
                     ordering_ui(&mut settings, ui);
+                    ui.end_row();
+                    if ui.add(egui::Button::new("Rotate 90")).clicked() {
+                        rotate.send_default();
+                    }
                 })
         });
 }
 
 const DEFAULT_THRESHOLDS: [Threshold; 2] = [
-    Threshold::Luminance(150.),
+    Threshold::Luminance(0.),
     Threshold::ColorSimilarity(1000, [0, 255, 0]),
 ];
 
@@ -51,20 +49,28 @@ fn threshold_ui(settings: &mut ResMut<Settings>, ui: &mut egui::Ui) {
     });
     ui.end_row();
     ui.label("Threshold Values:");
-    ui.horizontal(|ui| match settings.threshold {
-        Threshold::Luminance(ref mut val) => {
-            ui.add(
-                egui::DragValue::new(val)
-                    .clamp_range(0.0..=255.0)
-                    .speed(0.1),
-            );
-            ui.end_row();
+    ui.horizontal(|ui| {
+        match settings.threshold {
+            Threshold::Luminance(ref mut val) => {
+                ui.add(
+                    egui::DragValue::new(val)
+                        .clamp_range(0.0..=255.0)
+                        .speed(0.1),
+                );
+            }
+            Threshold::ColorSimilarity(ref mut val, ref mut color) => {
+                ui.add(egui::DragValue::new(val).clamp_range(0..=2500).speed(1.0));
+                ui.color_edit_button_srgb(color);
+            }
         }
-        Threshold::ColorSimilarity(ref mut val, ref mut color) => {
-            ui.add(egui::DragValue::new(val).clamp_range(0..=2500).speed(1.0));
-            ui.color_edit_button_srgb(color);
-        }
+        ui.label("Merge:");
+        ui.add(
+            egui::DragValue::new(&mut settings.merge_limit)
+                .clamp_range(0..=500)
+                .speed(0.01),
+        );
     });
+
     ui.end_row();
     ui.label("Extend:");
     ui.horizontal(|ui| {

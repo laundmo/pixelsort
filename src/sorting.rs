@@ -2,6 +2,7 @@ use crate::Settings;
 use itertools::Itertools;
 use std::{iter::Copied, slice::ArrayChunks};
 
+// Threshold types which are implemented
 #[derive(strum_macros::Display, PartialEq, Clone, Debug)]
 pub(crate) enum Threshold {
     Luminance(f32),
@@ -14,6 +15,7 @@ impl Default for Threshold {
     }
 }
 
+// Orderings which are implemented
 #[derive(Default, strum_macros::Display, PartialEq, Clone)]
 pub(crate) enum PixelOrdering {
     #[default]
@@ -21,6 +23,7 @@ pub(crate) enum PixelOrdering {
     ColorSimilarity([u8; 3]),
 }
 
+// get pixel Luminance, optimised integer arithmatic with a single cast to float
 fn pixel_to_luminance(pixel: &[u8; 4]) -> f32 {
     (pixel[0] as usize * 2 + pixel[1] as usize * 3 + pixel[2] as usize) as f32 / 6.
 }
@@ -45,6 +48,7 @@ fn distance_between(pixel: &[u8; 4], color: &[u8; 3]) -> i16 {
     ((2 + (rmean / 256)) * r + 4 * g + (2 + (255 - rmean) / 256) * b).abs()
 }
 
+// Implement the orderings
 impl PixelOrdering {
     pub(crate) fn order(&self, iter: Copied<ArrayChunks<u8, 4>>, reverse: bool) -> Vec<u8> {
         let iter = match self {
@@ -54,6 +58,7 @@ impl PixelOrdering {
                 distance_between(a, color).cmp(&distance_between(b, color))
             }),
         };
+        // If settings say reverse, reverse.
         if reverse {
             iter.rev().flatten().collect()
         } else {
@@ -62,16 +67,34 @@ impl PixelOrdering {
     }
 }
 
+// Struct to store the slices of a row which will be sorted
 #[derive(Default)]
 pub(crate) struct RowOp {
     pub(crate) slices: Vec<(usize, usize)>,
 }
 
 impl RowOp {
+    // Adds a slice
     fn add_slice(&mut self, (start, end): (usize, usize)) {
         self.slices.push((start, end));
     }
 
+    // Merge slices if their distance is less than the settings merge limit
+    fn merge_slice(&mut self, settings: &Settings) {
+        self.slices =
+            self.slices
+                .iter()
+                .fold(vec![], |mut vec: Vec<(usize, usize)>, &(start, end)| {
+                    if vec.len() > 1 && let Some(prev) = vec.last_mut() && start - prev.1 <= settings.merge_limit {
+                        prev.1 = end;
+                    } else {
+                        vec.push((start, end));
+                    }
+                    vec
+                });
+    }
+
+    // Extend slices by the settings values
     fn extend_slices(&mut self, settings: &Settings, row_length: usize) {
         let slices = self.slices.clone();
         self.slices = slices
@@ -98,10 +121,12 @@ impl RowOp {
             .collect();
     }
 
+    // Apply the threshold from settings to a row, and run the other slice processing steps
     pub(crate) fn apply_threshold(&mut self, row: &[u8], width: usize, settings: &Settings) {
         let threshold = &settings.threshold;
         let reverse = settings.threshold_reverse;
 
+        // Convert the row to booleans with true being over the threshold
         let bools: Vec<bool> = {
             match threshold {
                 Threshold::Luminance(value) => row
@@ -115,16 +140,20 @@ impl RowOp {
             }
         };
 
+        // Group the booleans to get the consecutive runs of them
         for (key, mut group) in &bools.iter().enumerate().group_by(|(_, b)| *b) {
+            // reverse the threshold based on the settings
             if *key != reverse {
+                // get the start of the consecutive run of bools
                 let first = group.next().unwrap();
+                // Get the end of it
                 if let Some(last) = group.last() {
+                    // add a slice for the first->last
                     self.add_slice((first.0, last.0 + 1));
-                } else {
-                    self.add_slice((first.0, first.0 + 1));
                 }
             }
         }
-        self.extend_slices(&settings, width);
+        self.extend_slices(settings, width);
+        self.merge_slice(settings);
     }
 }

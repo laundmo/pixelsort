@@ -27,8 +27,9 @@ strum_macros = "0.24"
 
 # dynamic feature default
 [features]
-default = ["fast-compile"]
-fast-compile = ["bevy/dynamic", "bevy/jpeg", "bevy/bmp", "bevy/tga"]
+default = ["formats"]
+fast-compile = ["bevy/dynamic", "formats"]
+formats = ["bevy/jpeg", "bevy/bmp", "bevy/tga"]
 
 # Enable only a small amount of optimization in debug mode
 [profile.dev]

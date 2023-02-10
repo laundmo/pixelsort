@@ -1,4 +1,5 @@
 #![feature(array_chunks)]
+#![feature(let_chains)]
 
 use bevy::{
     ecs::system::{Command, Insert},
@@ -33,6 +34,7 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0., 0., 0.)))
         .insert_resource(Canvas(None))
         .init_resource::<Settings>()
+        .add_event::<PersistEvent>()
         .add_event::<RotateEvent>()
         // Setup states
         .add_loopless_state(ImageStates::Before)
@@ -54,6 +56,7 @@ fn main() {
         .add_startup_system(setup)
         .add_system(ui::ui)
         .add_system(file_drop)
+        .add_system(persist)
         // These only run once a image was loaded.
         .add_system_set(
             ConditionSet::new()
@@ -180,6 +183,33 @@ fn setup(mut commands: Commands, mut canvas: ResMut<Canvas>) {
             min_scale: 0.,
             max_scale: Some(40.),
         });
+}
+
+#[derive(Default)]
+struct PersistEvent;
+
+fn persist(
+    mut evt: EventReader<PersistEvent>,
+    pixelsimage: Option<Res<PixelsortImage>>,
+    mut images: ResMut<Assets<Image>>,
+    canvas: Res<Canvas>,
+    mut commands: Commands,
+) {
+    if let Some(pixelsimg) = pixelsimage {
+        for _ in evt.iter() {
+            let dest_data = {
+                let dest = images.get_mut(&pixelsimg.dest).expect("unreachable");
+                dest.data.clone()
+            };
+
+            let source = images.get_mut(&pixelsimg.source).unwrap();
+            source.data = dest_data;
+            // Force sprite reset
+            commands
+                .entity(canvas.0.expect("unreachable"))
+                .insert(Sprite::default());
+        }
+    }
 }
 
 // Event dispatched when the image is rotated.

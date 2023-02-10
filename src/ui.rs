@@ -3,13 +3,14 @@ use bevy_egui::{egui, EguiContext};
 
 use crate::{
     sorting::{PixelOrdering, Threshold},
-    RotateEvent, Settings,
+    PersistEvent, RotateEvent, Settings,
 };
 
 pub(crate) fn ui(
     mut egui_context: ResMut<EguiContext>,
     mut settings: ResMut<Settings>,
     mut rotate: EventWriter<RotateEvent>,
+    mut persist: EventWriter<PersistEvent>,
 ) {
     egui::Window::new("Settings")
         .resizable(true)
@@ -24,6 +25,9 @@ pub(crate) fn ui(
                     ui.end_row();
                     if ui.add(egui::Button::new("Rotate 90")).clicked() {
                         rotate.send_default();
+                    };
+                    if ui.add(egui::Button::new("Persist")).clicked() {
+                        persist.send_default();
                     }
                 })
         });
